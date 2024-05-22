@@ -1,5 +1,4 @@
-use ndarray::{Array, Array2, IxDyn, StrideShape};
-type SizeNd = ();
+use ndarray::{Array, Array2, IxDyn};
 
 #[derive(Clone)]
 pub struct SolverConfig {
