@@ -7,18 +7,11 @@ pub struct SolverConfig {
     dt: f32,
 }
 
-/// Total memory is of order O(width^(N+1))
-/// Where N is the number of cell dimensions (3D -> N=3)
-///
-/// The last dimension of the Array corresponds to the component of the vector field.
-/// So x corresponds to {N entries}, 0) and y corresponds to ({N entries}, 1) and so on up to ({N entries}, N)
-///
-/// note: {N entries} can be any rectangular N-dimensional shape,
-/// but the last array dimension is always N
-///
-/// So the Array will have a shape with size (dimensions + 1)
 #[derive(Clone)]
-pub struct FlowField(Array<f32, IxDyn>);
+pub struct FlowField {
+    /// One single-component flow field for each face of the N-dimensional cube.
+    flow: Vec<Array<f32, IxDyn>>,
+}
 
 pub struct FluidSolver {
     flow: FlowField,
@@ -60,20 +53,19 @@ pub fn sweep_pointcloud(pcld: &mut PointCloud, flow: &FlowField, dt: f32) {
 }
 
 impl FlowField {
-    fn from_width(dimensions: usize, width: usize) -> Self {
-        let mut arr_dimensions = vec![width; dimensions];
-        // The last dimension implies a N-dimensional vector for each Cell.
-        arr_dimensions.push(dimensions);
-
-        Self(Array::zeros(vec![width; dimensions + 1]))
+    pub fn new(dimensions: usize, width: usize) -> Self {
+        Self {
+            flow: vec![Array::zeros(vec![width; dimensions]); dimensions],
+        }
     }
 
-    fn dims(&self) -> usize {
-        self.0.ndim() - 1
+    pub fn dims(&self) -> usize {
+        self.flow.len()
     }
 
+    /*
     /// Returns an iterator over the cell positions as an integer
-    fn enumerate(&self) -> Box<dyn Iterator<Item = FatVector<usize>> + '_> {
+    pub fn enumerate(&self) -> Box<dyn Iterator<Item = FatVector<usize>> + '_> {
         self.enumerate_rec(0, FatVector::from_size(self.dims()))
     }
 
@@ -84,6 +76,9 @@ impl FlowField {
     ) -> Box<dyn Iterator<Item = FatVector<usize>> + '_> {
         let num_indices = self.0.shape().get(idx).copied().unwrap_or(0);
         let mut fat = fat;
+        if num_indices == 0 {
+            return Box::new(std::iter::once(fat))
+        }
         Box::new(
             (0..num_indices)
                 .map(move |j| {
@@ -93,10 +88,10 @@ impl FlowField {
                 .flatten(),
         )
     }
+    */
 
     /// Bilinear interpolation at the given position in ND space
-    fn bilinear(position: FatVector<f32>) -> f32 {
-        todo!()
+    pub fn bilinear(position: FatVector<f32>) -> Option<f32> {
     }
 }
 
@@ -116,6 +111,40 @@ pub struct FatVector<T>(usize, [T; FAT]);
 impl<T: Default + Copy> FatVector<T> {
     fn from_size(size: usize) -> Self {
         FatVector(size, [T::default(); FAT])
+    }
+}
+
+impl<T: Copy> FatVector<T> {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> + '_ {
+        self.1.iter_mut()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &T> + '_ {
+        self.1.iter()
+    }
+
+    fn map<U, F: FnMut(T) -> U>(self, f: F) -> FatVector<U> {
+        let FatVector(size, elems) = self;
+        FatVector(size, elems.map(f))
+    }
+
+    fn zip<U, V, F>(self, rhs: FatVector<U>, mut f: F) -> FatVector<V>
+    where
+        V: Default + Copy,
+        F: FnMut(T, U) -> V,
+    {
+        let FatVector(size_lhs, elems_lhs) = self;
+        let FatVector(size_rhs, elems_rhs) = rhs;
+        assert_eq!(size_lhs, size_rhs);
+        let mut output = FatVector::from_size(size_lhs);
+
+        output
+            .iter_mut()
+            .zip(elems_lhs)
+            .zip(elems_rhs)
+            .for_each(|((output, lhs), rhs)| *output = f(lhs, rhs));
+
+        output
     }
 }
 
