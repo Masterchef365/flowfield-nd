@@ -154,7 +154,7 @@ pub fn n_linear_interp_array(
     for dimension in 0..dims {
         let stride = 1 << dimension;
         for slice in neighborhood_lerp.chunks_exact_mut(stride * 2) {
-            slice[0] = lerp(slice[0], slice[stride], fractional[dimension]);
+            slice[0] = lerp(slice[0], slice[stride], fractional[dims - dimension - 1]);
         }
     }
 
