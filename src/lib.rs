@@ -212,3 +212,25 @@ fn combos(min: i32, max: i32, step: i32, n_dims: usize) -> Vec<Vec<i32>> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn interp_test() {
+        let mut arr = Array::from_elem(vec![2], 0.0);
+        arr[[1]] = 1.0;
+
+        assert_eq!(n_linear_interp_array(&arr, &[0.46], Boundary::Zero), 0.46);
+    }
+
+    #[test]
+    fn interp_test_2() {
+        let mut arr = Array::from_elem(vec![2; 2], 0.0);
+        arr[[1, 0]] = 1.0;
+        arr[[1, 1]] = 10.0;
+
+        assert_eq!(n_linear_interp_array(&arr, &[0.5, 0.5], Boundary::Zero), 5.5/2.0);
+    }
+}
