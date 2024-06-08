@@ -79,7 +79,7 @@ impl FlowField {
     }
 
     /// linear interpolation of the flow map at a point in ND space
-    pub fn n_linear_interp(&self, position: &[f32]) -> Option<Vec<f32>> {
+    pub fn n_linear_interp(&self, position: &[f32], boundary: Boundary) -> Option<Vec<f32>> {
         assert_eq!(position.len(), self.dims());
 
         let mut output = vec![0.0; self.dims()];
@@ -89,12 +89,16 @@ impl FlowField {
             let mut pos_off = position.to_vec();
             // Calculate dimensional offset
             for (i, pos) in pos_off.iter_mut().enumerate() {
-                if i == coord_idx {
-                    *pos += 0.5;
-                } else {
+                // Offset inside this sub-grid. 
+                // The reasoning for this is that if we are a face of one dimension on the grid, 
+                // then the zero vale of our dimension should also be zero in the real world.
+                // Everything else is offset by 1/2 of a square because setting that one zero
+                // centered the face there!
+                if i != coord_idx {
                     *pos -= 0.5;
                 }
             }
+            output[coord_idx] = n_linear_interp_array(flow_channel, &pos_off, boundary);
         }
 
         Some(output)
