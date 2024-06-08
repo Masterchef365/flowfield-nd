@@ -78,9 +78,71 @@ impl FlowField {
         enumerate_coords(self.width(), self.dims())
     }
 
-    /// Bilinear interpolation at the given position in ND space
-    pub fn bilinear(position: &[f32]) -> Option<Vec<f32>> {
-        todo!()
+    /// linear interpolation of the flow map at a point in ND space
+    pub fn n_linear_interp(&self, position: &[f32]) -> Option<Vec<f32>> {
+        assert_eq!(position.len(), self.dims());
+
+        let mut output = vec![0.0; self.dims()];
+
+        // Iterate over x, y, z, ...
+        for (coord_idx, flow_channel) in self.flow.iter().enumerate() {
+            let mut pos_off = position.to_vec();
+            // Calculate dimensional offset
+            for (i, pos) in pos_off.iter_mut().enumerate() {
+                if i == coord_idx {
+                    *pos += 0.5;
+                } else {
+                    *pos -= 0.5;
+                }
+            }
+        }
+
+        Some(output)
+    }
+}
+
+fn lerp(a: f32, b: f32, t: f32) -> f32 {
+    (1. - t) * a + t * b
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Boundary {
+    Nearest,
+    Zero,
+}
+
+pub fn n_linear_interp_array(
+    arr: &Array<f32, IxDyn>,
+    input_pos: &[f32],
+    boundary: Boundary,
+) -> f32 {
+    let dims = arr.shape().len();
+    assert_eq!(input_pos.len(), dims);
+
+    let mut accum = 0.0;
+
+    let upper_left: Vec<i32> = input_pos.iter().map(|p| p.floor() as i32).collect();
+    // Iterate over neighbors in n-space.
+    // In 1D this is nearest neighbor
+    // in 2D these are the vertices of the square
+    // in 3D these are ditto cube
+    // ... hypercubes
+    for combo in combos(0, 1, 1, dims) {
+        // Offset position
+        let mut pos: Vec<i32> = upper_left.iter().zip(combo).map(|(p, c)| p + c).collect();
+    }
+
+    accum
+}
+
+impl Boundary {
+    pub fn clamp_or_none(&self, coord: i32, width: usize) -> Option<usize> {
+        match self {
+            Self::Nearest => Some(coord.max(width as i32 - 1) as usize),
+            Self::Zero => (0..width)
+                .contains(&coord.try_into().ok()?)
+                .then(|| coord as usize),
+        }
     }
 }
 
@@ -98,7 +160,8 @@ pub fn enumerate_coords(width: usize, n_dims: usize) -> impl Iterator<Item = Vec
         coordinate[inc] += 1;
         coordinate[0..inc].fill(0);
         Some(cpy)
-    }).chain(std::iter::once(vec![width - 1; n_dims]))
+    })
+    .chain(std::iter::once(vec![width - 1; n_dims]))
 }
 
 pub fn neighborhood(n_dims: usize) -> Vec<Vec<i32>> {
