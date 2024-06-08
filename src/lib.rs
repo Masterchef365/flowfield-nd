@@ -231,6 +231,8 @@ mod tests {
         arr[[1, 0]] = 1.0;
         arr[[1, 1]] = 10.0;
 
-        assert_eq!(n_linear_interp_array(&arr, &[0.5, 0.5], Boundary::Zero), 5.5/2.0);
+        assert_eq!(n_linear_interp_array(&arr, &[0.5, 0.5], Boundary::Zero), 2.75);
+        assert_eq!(n_linear_interp_array(&arr, &[0.0, 0.5], Boundary::Zero), 0.);
+        assert_eq!(n_linear_interp_array(&arr, &[1.0, 0.5], Boundary::Zero), 11.0/2.0);
     }
 }
