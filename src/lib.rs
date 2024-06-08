@@ -127,10 +127,29 @@ pub fn n_linear_interp_array(
     // in 2D these are the vertices of the square
     // in 3D these are ditto cube
     // ... hypercubes
+    let mut neighborhood = Array::from_elem(vec![2; dims], 0.0);
+
     for combo in combos(0, 1, 1, dims) {
-        // Offset position
-        let mut pos: Vec<i32> = upper_left.iter().zip(combo).map(|(p, c)| p + c).collect();
+        // Offset position, and do bounds check
+        let val = upper_left
+            .iter()
+            .zip(&combo)
+            .map(|(p, c)| p + c)
+            .enumerate()
+            .map(|(idx, pos)| boundary.clamp_or_none(pos, arr.shape()[idx]))
+            .collect::<Option<Vec<usize>>>()
+            .map(|pos| arr[pos.as_slice()])
+            .unwrap_or(0.0);
+
+        let combo_usize = combo
+            .into_iter()
+            .map(|c| c as usize)
+            .collect::<Vec<usize>>();
+
+        *neighborhood.index_mut(combo_usize.as_slice()) = val;
     }
+
+    // todo
 
     accum
 }
