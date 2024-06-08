@@ -119,9 +119,9 @@ pub fn n_linear_interp_array(
     let dims = arr.shape().len();
     assert_eq!(input_pos.len(), dims);
 
-    let mut accum = 0.0;
-
+    let fractional: Vec<f32> = input_pos.iter().map(|p| p.fract() as f32).collect();
     let upper_left: Vec<i32> = input_pos.iter().map(|p| p.floor() as i32).collect();
+
     // Iterate over neighbors in n-space.
     // In 1D this is nearest neighbor
     // in 2D these are the vertices of the square
@@ -138,8 +138,7 @@ pub fn n_linear_interp_array(
             .enumerate()
             .map(|(idx, pos)| boundary.clamp_or_none(pos, arr.shape()[idx]))
             .collect::<Option<Vec<usize>>>()
-            .map(|pos| arr[pos.as_slice()])
-            .unwrap_or(0.0);
+            .map_or(0.0, |pos| arr[pos.as_slice()]);
 
         let combo_usize = combo
             .into_iter()
@@ -149,9 +148,17 @@ pub fn n_linear_interp_array(
         *neighborhood.index_mut(combo_usize.as_slice()) = val;
     }
 
-    // todo
+    let neighborhood_lerp = neighborhood.as_slice_memory_order_mut().unwrap();
 
-    accum
+    // Fast linear interpolate
+    for dimension in 0..dims {
+        let stride = 1 << dimension;
+        for slice in neighborhood_lerp.chunks_exact_mut(stride * 2) {
+            slice[0] = lerp(slice[0], slice[stride], fractional[dimension]);
+        }
+    }
+
+    neighborhood_lerp[0]
 }
 
 impl Boundary {
