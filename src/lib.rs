@@ -21,7 +21,7 @@ pub struct FluidSolver {
 /// This is a two-dimensional array for the point cloud, where the last dimension corresponds
 /// to the coponent of the vector, and the second dimension corresponds to which point is selected
 #[derive(Clone)]
-pub struct PointCloud(Array2<f32>);
+pub struct PointCloud(pub Array2<f32>);
 
 impl FluidSolver {
     pub fn new(flow: FlowField) -> Self {
@@ -54,6 +54,9 @@ impl FluidSolver {
 
 /// Sweeps the given point cloud along the given flow field
 pub fn sweep_pointcloud(pcld: &mut PointCloud, flow: &FlowField, dt: f32) {
+    for pos in pcld.0.outer_iter() {
+        dbg!(pos);
+    }
     todo!()
 }
 
@@ -73,10 +76,16 @@ impl FlowField {
         self.flow.len()
     }
 
+    pub fn get_axes(&self) -> &[Array<f32, IxDyn>] {
+        &self.flow
+    }
+
+    /*
     /// Returns an iterator over the cell positions (as integers)
     pub fn enumerate(&self) -> impl Iterator<Item = Vec<usize>> + 'static {
         enumerate_coords(self.width(), self.dims())
     }
+    */
 
     /// linear interpolation of the flow map at a point in ND space
     pub fn n_linear_interp(&self, position: &[f32], boundary: Boundary) -> Option<Vec<f32>> {
@@ -182,6 +191,7 @@ impl PointCloud {
     }
 }
 
+/*
 pub fn enumerate_coords(width: usize, n_dims: usize) -> impl Iterator<Item = Vec<usize>> + 'static {
     let mut coordinate = vec![0; n_dims];
     std::iter::from_fn(move || {
@@ -193,6 +203,7 @@ pub fn enumerate_coords(width: usize, n_dims: usize) -> impl Iterator<Item = Vec
     })
     .chain(std::iter::once(vec![width - 1; n_dims]))
 }
+*/
 
 pub fn neighborhood(n_dims: usize) -> Vec<Vec<i32>> {
     combos(-1, 1, 1, n_dims)
