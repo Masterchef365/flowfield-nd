@@ -5,6 +5,7 @@ use ndarray::{Array, Array2, ArrayView, IxDyn};
 #[derive(Clone)]
 pub struct SolverConfig {
     pub dt: f32,
+    pub n_iters: usize,
 }
 
 #[derive(Clone)]
@@ -29,7 +30,33 @@ impl FluidSolver {
     }
 
     pub fn step(&mut self, config: &SolverConfig) {
+        self.jacobi(config.n_iters);
+        self.advect(config.dt);
+    }
 
+    fn jacobi(&mut self, n_iters: usize) {
+        for i in 0..n_iters * 2 {
+            self.jacobi_half_step(i & 1 != 0);
+        }
+    }
+
+    fn jacobi_half_step(&mut self, parity: bool) {
+        let shape_minus_one = vec![self.width() - 2; self.dims()];
+        for (idx, tl) in fill_shape(&shape_minus_one).enumerate() {
+            if (idx & 1 == 0) != parity {
+                continue;
+            }
+
+            for dim in 0..self.dims() {
+                let mut other = tl.clone();
+                other[dim] += 1;
+
+            }
+
+        }
+    }
+
+    fn advect(&mut self, dt: f32) {
     }
 
     pub fn shape(&self) -> Vec<usize> {
@@ -202,7 +229,7 @@ pub fn n_linear_interp_array(
 impl Boundary {
     pub fn clamp_or_none(&self, coord: i32, width: usize) -> Option<usize> {
         match self {
-            Self::Nearest => Some(coord.max(width as i32) as usize),
+            Self::Nearest => Some(coord.max(width as i32 - 1) as usize),
             Self::Zero => (0..width)
                 .contains(&coord.try_into().ok()?)
                 .then(|| coord as usize),
