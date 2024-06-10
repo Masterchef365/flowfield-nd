@@ -32,6 +32,10 @@ impl FluidSolver {
 
     }
 
+    pub fn shape(&self) -> Vec<usize> {
+        self.flow.shape()
+    }
+
     pub fn get_flow(&self) -> &FlowField {
         &self.flow
     }
@@ -63,10 +67,24 @@ pub fn sweep_pointcloud(pcld: &mut PointCloud, flow: &FlowField, dt: f32) {
 
 impl FlowField {
     pub fn new(dimensions: usize, width: usize) -> Self {
+        let mut flow = vec![];
+        for dim in 0..dimensions {
+            // We need an extra array element in each direction we're not principally responsible
+            // for (as a cell)
+            let mut shape = vec![width + 1; dimensions];
+            shape[dim] -= 1;
+
+            flow.push(Array::zeros(shape));
+        }
+
         Self {
-            flow: vec![Array::zeros(vec![width; dimensions]); dimensions],
+            flow,
             width,
         }
+    }
+
+    pub fn shape(&self) -> Vec<usize> {
+        vec![self.width; self.dims()]
     }
 
     pub fn width(&self) -> usize {
@@ -108,9 +126,9 @@ impl FlowField {
                 // then the zero vale of our dimension should also be zero in the real world.
                 // Everything else is offset by 1/2 of a square because setting that one zero
                 // centered the face there!
-                /*if i != coord_idx {
-                    *pos -= 0.5;
-                }*/
+                if i != coord_idx {
+                    *pos += 0.5;
+                }
             }
             output[coord_idx] = n_linear_interp_array(flow_channel, &pos_off, boundary)?;
         }
