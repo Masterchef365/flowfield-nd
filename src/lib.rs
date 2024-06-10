@@ -210,18 +210,21 @@ pub fn enumerate_coords(width: usize, n_dims: usize) -> impl Iterator<Item = Vec
 }
 */
 
-pub fn neighborhood(n_dims: usize) -> Vec<Vec<i32>> {
+pub fn neighborhood(n_dims: usize) -> impl Iterator<Item=Vec<i32>> {
     combos(-1, 1, 1, n_dims)
 }
 
-fn combos(min: i32, max: i32, step: i32, n_dims: usize) -> Vec<Vec<i32>> {
+pub fn combos(min: i32, max: i32, step: i32, n_dims: usize) -> impl Iterator<Item=Vec<i32>> {
     let mut dims = vec![min; n_dims];
-    let mut combos = vec![];
-    loop {
-        combos.push(dims.clone());
-        if dims == vec![max; n_dims] {
-            break combos;
+    std::iter::from_fn(move || {
+        // Quitting
+        if dims.is_empty() {
+            return None;
         }
+        
+        let ret = dims.clone();
+       
+        // Cascading add
         for i in 0..n_dims {
             if dims[i] < max {
                 dims[i] += step;
@@ -230,8 +233,16 @@ fn combos(min: i32, max: i32, step: i32, n_dims: usize) -> Vec<Vec<i32>> {
                 dims[i] = min;
             }
         }
-    }
+         
+        // Remember to quit
+        if ret.iter().all(|&v| v == max) {
+            dims = vec![];
+        }
+        
+        Some(ret)
+    })
 }
+
 
 #[cfg(test)]
 mod tests {
