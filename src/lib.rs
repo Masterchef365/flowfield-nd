@@ -108,9 +108,9 @@ impl FlowField {
                 // then the zero vale of our dimension should also be zero in the real world.
                 // Everything else is offset by 1/2 of a square because setting that one zero
                 // centered the face there!
-                if i != coord_idx {
+                /*if i != coord_idx {
                     *pos -= 0.5;
-                }
+                }*/
             }
             output[coord_idx] = n_linear_interp_array(flow_channel, &pos_off, boundary)?;
         }
@@ -182,7 +182,7 @@ pub fn n_linear_interp_array(
 impl Boundary {
     pub fn clamp_or_none(&self, coord: i32, width: usize) -> Option<usize> {
         match self {
-            Self::Nearest => Some(coord.max(width as i32 - 1) as usize),
+            Self::Nearest => Some(coord.max(width as i32) as usize),
             Self::Zero => (0..width)
                 .contains(&coord.try_into().ok()?)
                 .then(|| coord as usize),
