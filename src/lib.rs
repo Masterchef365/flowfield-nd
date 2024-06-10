@@ -1,6 +1,6 @@
 use std::ops::{Index, IndexMut};
 
-use ndarray::{Array, Array2, ArrayView, IxDyn};
+use ndarray::{Array, Array2, ArrayView, Dimension, IxDyn};
 
 #[derive(Clone)]
 pub struct SolverConfig {
@@ -31,9 +31,9 @@ impl FluidSolver {
     }
 
     pub fn step(&mut self, config: &SolverConfig) {
-        //self.enforce_boundaries();
         self.jacobi(config.n_iters);
-        //self.advect(config.dt);
+        self.advect(config.dt);
+        self.enforce_boundaries();
     }
 
     fn jacobi(&mut self, n_iters: usize) {
@@ -78,7 +78,7 @@ impl FluidSolver {
                 total_divergence += divergence;
             }
 
-            let mut div_correction = total_divergence / (self.dims() as f32 * 2.);
+            let div_correction = total_divergence / (self.dims() as f32 * 2.);
 
 
             for dim in 0..self.dims() {
@@ -95,6 +95,30 @@ impl FluidSolver {
     }
 
     fn advect(&mut self, dt: f32) {
+        let dims = self.dims();
+
+        for (coord_idx, flow_channel) in self.writebuf.flow.iter_mut().enumerate() {
+            for (grid_pos, out_vel) in flow_channel.indexed_iter_mut() {
+                let mut pos_off: Vec<f32> = grid_pos.as_array_view().iter().map(|p| *p as f32).collect();
+
+                // Calculate dimensional offset
+                for (i, pos) in pos_off.iter_mut().enumerate() {
+                    // Staggered grid
+                    if i != coord_idx {
+                        *pos += 0.5;
+                    }
+                }
+
+                let vel_here = self.flow.n_linear_interp(&pos_off, Boundary::Zero).unwrap_or(vec![0.0; dims]);
+
+                // Advect
+                pos_off.iter_mut().zip(vel_here).for_each(|(p, v)| *p -= v * dt);
+
+                *out_vel = self.flow.n_linear_interp(&pos_off, Boundary::Zero).unwrap_or(vec![0.0; dims])[coord_idx];
+            }
+        }
+
+        std::mem::swap(&mut self.flow, &mut self.writebuf);
     }
 
     pub fn shape(&self) -> Vec<usize> {
