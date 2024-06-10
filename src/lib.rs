@@ -31,8 +31,8 @@ impl FluidSolver {
     }
 
     pub fn step(&mut self, config: &SolverConfig) {
-        self.enforce_boundaries();
-        //self.jacobi(config.n_iters);
+        //self.enforce_boundaries();
+        self.jacobi(config.n_iters);
         //self.advect(config.dt);
     }
 
