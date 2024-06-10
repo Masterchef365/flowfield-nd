@@ -1,6 +1,7 @@
 use flowfield_nd::FlowField;
 
 fn main() {
+    /*
     let ff = FlowField::new(3, 10);
     for x in ff.enumerate() {
         dbg!(x);
@@ -14,4 +15,5 @@ fn main() {
     for i in 0..10 {
         dbg!(i, flowfield_nd::neighborhood(i).len());
     }
+    */
 }

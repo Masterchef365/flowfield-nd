@@ -112,7 +112,7 @@ impl FlowField {
                     *pos -= 0.5;
                 }
             }
-            output[coord_idx] = n_linear_interp_array(flow_channel, &pos_off, boundary);
+            output[coord_idx] = n_linear_interp_array(flow_channel, &pos_off, boundary)?;
         }
 
         Some(output)
@@ -133,7 +133,7 @@ pub fn n_linear_interp_array(
     arr: &Array<f32, IxDyn>,
     input_pos: &[f32],
     boundary: Boundary,
-) -> f32 {
+) -> Option<f32> {
     let dims = arr.shape().len();
     assert_eq!(input_pos.len(), dims);
 
@@ -149,14 +149,14 @@ pub fn n_linear_interp_array(
 
     for combo in combos(0, 1, 1, dims) {
         // Offset position, and do bounds check
-        let val = upper_left
+        let pos = upper_left
             .iter()
             .zip(&combo)
             .map(|(p, c)| p + c)
             .enumerate()
             .map(|(idx, pos)| boundary.clamp_or_none(pos, arr.shape()[idx]))
-            .collect::<Option<Vec<usize>>>()
-            .map_or(0.0, |pos| arr[pos.as_slice()]);
+            .collect::<Option<Vec<usize>>>()?;
+        let val = arr[pos.as_slice()];
 
         let combo_usize = combo
             .into_iter()
@@ -176,7 +176,7 @@ pub fn n_linear_interp_array(
         }
     }
 
-    neighborhood_lerp[0]
+    Some(neighborhood_lerp[0])
 }
 
 impl Boundary {
@@ -282,7 +282,7 @@ mod tests {
         let mut arr = Array::from_elem(vec![2], 0.0);
         arr[[1]] = 1.0;
 
-        assert_eq!(n_linear_interp_array(&arr, &[0.46], Boundary::Zero), 0.46);
+        assert_eq!(n_linear_interp_array(&arr, &[0.46], Boundary::Zero).unwrap(), 0.46);
     }
 
     #[test]
@@ -291,9 +291,9 @@ mod tests {
         arr[[1, 0]] = 1.0;
         arr[[1, 1]] = 10.0;
 
-        assert_eq!(n_linear_interp_array(&arr, &[0.5, 0.5], Boundary::Zero), 2.75);
-        assert_eq!(n_linear_interp_array(&arr, &[0.0, 0.5], Boundary::Zero), 0.);
-        assert_eq!(n_linear_interp_array(&arr, &[1.0, 0.5], Boundary::Zero), 11.0/2.0);
+        assert_eq!(n_linear_interp_array(&arr, &[0.5, 0.5], Boundary::Zero).unwrap(), 2.75);
+        assert_eq!(n_linear_interp_array(&arr, &[0.0, 0.5], Boundary::Zero).unwrap(), 0.);
+        assert!((n_linear_interp_array(&arr, &[0.9999, 0.5], Boundary::Zero).unwrap() - 11.0/2.0).abs() < 1e-3);
     }
 }
 
