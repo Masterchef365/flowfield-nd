@@ -79,15 +79,14 @@ impl FluidSolver {
             }
 
             let mut div_correction = total_divergence / (self.dims() as f32 * 2.);
-            div_correction *= 0.01;
 
 
             for dim in 0..self.dims() {
                 let mut other = tl.clone();
                 other[dim] += 1;
 
-                self.writebuf.flow[dim][&*tl] += div_correction;
-                self.writebuf.flow[dim][&*other] -= div_correction;
+                self.writebuf.flow[dim][&*tl] = self.flow.flow[dim][&*tl] + div_correction;
+                self.writebuf.flow[dim][&*other] = self.flow.flow[dim][&*other] - div_correction;
             }
 
         }
