@@ -31,13 +31,29 @@ impl FluidSolver {
     }
 
     pub fn step(&mut self, config: &SolverConfig) {
-        self.jacobi(config.n_iters);
-        self.advect(config.dt);
+        self.enforce_boundaries();
+        //self.jacobi(config.n_iters);
+        //self.advect(config.dt);
     }
 
     fn jacobi(&mut self, n_iters: usize) {
         for i in 0..n_iters * 2 {
+            self.enforce_boundaries();
             self.jacobi_half_step(i & 1 != 0);
+        }
+    }
+
+    fn enforce_boundaries(&mut self) {
+        for (dim, axis) in self.flow.flow.iter_mut().enumerate() {
+            let mut shape = axis.shape().to_vec();
+            shape[dim] = 1;
+
+            for mut pos in fill_shape(&shape) {
+                for extrema in [0, axis.shape()[dim] - 1] {
+                    pos[dim] = extrema;
+                    axis[&*pos] = 0.0;
+                }
+            }
         }
     }
 
@@ -50,6 +66,7 @@ impl FluidSolver {
             }
 
             let mut total_divergence = 0.0;
+
             for dim in 0..self.dims() {
                 let mut other = tl.clone();
                 other[dim] += 1;
@@ -61,14 +78,16 @@ impl FluidSolver {
                 total_divergence += divergence;
             }
 
-            let div_correction = total_divergence / (self.dims() as f32 * 2.);
+            let mut div_correction = total_divergence / (self.dims() as f32 * 2.);
+            div_correction *= 0.001;
+
 
             for dim in 0..self.dims() {
                 let mut other = tl.clone();
                 other[dim] += 1;
 
-                self.writebuf.flow[dim][&*tl] -= div_correction;
-                self.writebuf.flow[dim][&*other] += div_correction;
+                self.writebuf.flow[dim][&*tl] += div_correction;
+                self.writebuf.flow[dim][&*other] -= div_correction;
             }
 
         }
