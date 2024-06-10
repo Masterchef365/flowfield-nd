@@ -126,6 +126,8 @@ impl FlowField {
                 // then the zero vale of our dimension should also be zero in the real world.
                 // Everything else is offset by 1/2 of a square because setting that one zero
                 // centered the face there!
+
+                // Staggered grid
                 if i != coord_idx {
                     *pos += 0.5;
                 }
