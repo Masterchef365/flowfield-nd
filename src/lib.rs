@@ -243,6 +243,35 @@ pub fn combos(min: i32, max: i32, step: i32, n_dims: usize) -> impl Iterator<Ite
     })
 }
 
+pub fn fill_shape(shape: &[usize]) -> impl Iterator<Item=Vec<usize>> + '_ {
+    let mut dims = vec![0; shape.len()];
+
+    std::iter::from_fn(move || {
+        // Quitting
+        if dims.is_empty() {
+            return None;
+        }
+        
+        let ret = dims.clone();
+       
+        // Cascading add
+        for i in 0..shape.len() {
+            if dims[i] + 1 < shape[i] {
+                dims[i] += 1;
+                break;
+            } else {
+                dims[i] = 0;
+            }
+        }
+         
+        // Remember to quit
+        if ret.iter().enumerate().all(|(idx, &v)| v + 1 == shape[idx]) {
+            dims = vec![];
+        }
+        
+        Some(ret)
+    })
+}
 
 #[cfg(test)]
 mod tests {
