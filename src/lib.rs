@@ -42,6 +42,7 @@ impl FluidSolver {
 
     fn jacobi_half_step(&mut self, parity: bool) {
         let shape_minus_one = vec![self.width() - 2; self.dims()];
+
         for (idx, tl) in fill_shape(&shape_minus_one).enumerate() {
             if (idx & 1 == 0) != parity {
                 continue;
@@ -50,7 +51,6 @@ impl FluidSolver {
             for dim in 0..self.dims() {
                 let mut other = tl.clone();
                 other[dim] += 1;
-
             }
 
         }
@@ -346,6 +346,6 @@ mod tests {
 
 impl Default for SolverConfig {
     fn default() -> Self {
-        Self { dt: 0.1 }
+        Self { dt: 0.1, n_iters: 10 }
     }
 }
