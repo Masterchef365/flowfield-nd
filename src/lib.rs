@@ -4,7 +4,7 @@ use ndarray::{Array, Array2, ArrayView, IxDyn};
 
 #[derive(Clone)]
 pub struct SolverConfig {
-    dt: f32,
+    pub dt: f32,
 }
 
 #[derive(Clone)]
@@ -29,7 +29,7 @@ impl FluidSolver {
     }
 
     pub fn step(&mut self, config: &SolverConfig) {
-        todo!()
+
     }
 
     pub fn get_flow(&self) -> &FlowField {
@@ -79,6 +79,10 @@ impl FlowField {
 
     pub fn get_axes(&self) -> &[Array<f32, IxDyn>] {
         &self.flow
+    }
+
+    pub fn get_axes_mut(&mut self) -> &mut [Array<f32, IxDyn>] {
+        &mut self.flow
     }
 
     /*
@@ -250,5 +254,11 @@ mod tests {
         assert_eq!(n_linear_interp_array(&arr, &[0.5, 0.5], Boundary::Zero), 2.75);
         assert_eq!(n_linear_interp_array(&arr, &[0.0, 0.5], Boundary::Zero), 0.);
         assert_eq!(n_linear_interp_array(&arr, &[1.0, 0.5], Boundary::Zero), 11.0/2.0);
+    }
+}
+
+impl Default for SolverConfig {
+    fn default() -> Self {
+        Self { dt: 0.1 }
     }
 }
