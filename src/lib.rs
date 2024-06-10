@@ -48,16 +48,17 @@ impl FluidSolver {
     pub fn width(&self) -> usize {
         self.flow.width()
     }
-
-    fn advect(&mut self, config: &SolverConfig) {}
 }
 
 /// Sweeps the given point cloud along the given flow field
 pub fn sweep_pointcloud(pcld: &mut PointCloud, flow: &FlowField, dt: f32) {
-    for pos in pcld.0.outer_iter() {
-        dbg!(pos);
+    for mut pos in pcld.0.outer_iter_mut() {
+        if let Some(vel) = flow.n_linear_interp(pos.as_slice().unwrap(), Boundary::Zero) {
+            pos.iter_mut().zip(vel).for_each(|(p, v)| *p += v * dt);
+        } else {
+            // TODO: What happens when we go out of bounds?
+        }
     }
-    todo!()
 }
 
 impl FlowField {
