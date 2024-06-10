@@ -79,7 +79,7 @@ impl FluidSolver {
             }
 
             let mut div_correction = total_divergence / (self.dims() as f32 * 2.);
-            div_correction *= 0.001;
+            div_correction *= 0.01;
 
 
             for dim in 0..self.dims() {
