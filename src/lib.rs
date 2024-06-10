@@ -17,6 +17,7 @@ pub struct FlowField {
 
 pub struct FluidSolver {
     flow: FlowField,
+    writebuf: FlowField,
 }
 
 /// This is a two-dimensional array for the point cloud, where the last dimension corresponds
@@ -26,7 +27,7 @@ pub struct PointCloud(pub Array2<f32>);
 
 impl FluidSolver {
     pub fn new(flow: FlowField) -> Self {
-        Self { flow }
+        Self { writebuf: flow.clone(), flow }
     }
 
     pub fn step(&mut self, config: &SolverConfig) {
@@ -66,11 +67,13 @@ impl FluidSolver {
                 let mut other = tl.clone();
                 other[dim] += 1;
 
-                self.flow.flow[dim][&*tl] -= div_correction;
-                self.flow.flow[dim][&*other] += div_correction;
+                self.writebuf.flow[dim][&*tl] -= div_correction;
+                self.writebuf.flow[dim][&*other] += div_correction;
             }
 
         }
+
+        std::mem::swap(&mut self.flow, &mut self.writebuf);
     }
 
     fn advect(&mut self, dt: f32) {
