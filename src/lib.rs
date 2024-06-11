@@ -32,7 +32,7 @@ impl FluidSolver {
 
     pub fn step(&mut self, config: &SolverConfig) {
         self.jacobi(config.n_iters);
-        self.advect(config.dt);
+        //self.advect(config.dt);
         self.enforce_boundaries();
     }
 
@@ -80,6 +80,7 @@ impl FluidSolver {
 
             let div_correction = total_divergence / (self.dims() as f32 * 2.);
 
+            let div_correction = div_correction * 1e-2;
 
             for dim in 0..self.dims() {
                 let mut other = tl.clone();
