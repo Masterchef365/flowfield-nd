@@ -58,9 +58,11 @@ impl FluidSolver {
     }
 
     fn jacobi_half_step(&mut self, parity: bool) {
-        let shape_minus_one = vec![self.width() - 2; self.dims()];
+        let shape_minus_one = vec![self.width() - 1; self.dims()];
 
-        for (idx, tl) in fill_shape(&shape_minus_one).enumerate() {
+        for mut tl in fill_shape(&shape_minus_one) {
+            tl.iter_mut().for_each(|v| *v += 1);
+
             if (tl.iter().sum::<usize>() & 1 == 0) != parity {
                 continue;
             }
@@ -69,10 +71,10 @@ impl FluidSolver {
 
             for dim in 0..self.dims() {
                 let mut other = tl.clone();
-                other[dim] += 1;
+                other[dim] -= 1;
 
-                let lo = self.flow.flow[dim][&*tl];
-                let hi = self.flow.flow[dim][&*other];
+                let hi = self.flow.flow[dim][&*tl];
+                let lo = self.flow.flow[dim][&*other];
                 let divergence = hi - lo;
 
                 total_divergence += divergence;
@@ -80,14 +82,14 @@ impl FluidSolver {
 
             let div_correction = total_divergence / (self.dims() as f32 * 2.);
 
-            //let div_correction = div_correction * 1e-2;
+            let div_correction = div_correction * 1e-3;
 
             for dim in 0..self.dims() {
                 let mut other = tl.clone();
-                other[dim] += 1;
+                other[dim] -= 1;
 
-                self.writebuf.flow[dim][&*tl] = self.flow.flow[dim][&*tl] + div_correction;
-                self.writebuf.flow[dim][&*other] = self.flow.flow[dim][&*other] - div_correction;
+                self.writebuf.flow[dim][&*tl] = self.flow.flow[dim][&*tl] - div_correction;
+                self.writebuf.flow[dim][&*other] = self.flow.flow[dim][&*other] + div_correction;
             }
 
         }
