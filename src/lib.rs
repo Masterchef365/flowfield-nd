@@ -32,7 +32,7 @@ impl FluidSolver {
 
     pub fn step(&mut self, config: &SolverConfig) {
         self.jacobi(config.n_iters);
-        //self.advect(config.dt);
+        self.advect(config.dt);
         self.enforce_boundaries();
     }
 
@@ -58,6 +58,8 @@ impl FluidSolver {
     }
 
     fn jacobi_half_step(&mut self, parity: bool) {
+        const OVERSTEP: f32 = 1.5;
+
         let shape_minus_one = vec![self.width() - 1; self.dims()];
 
         for mut tl in fill_shape(&shape_minus_one) {
@@ -80,7 +82,8 @@ impl FluidSolver {
                 total_divergence += divergence;
             }
 
-            let div_correction = total_divergence / (self.dims() as f32 * 2.);
+            let mut div_correction = total_divergence / (self.dims() as f32 * 2.);
+            div_correction *= OVERSTEP;
 
             for dim in 0..self.dims() {
                 let mut other = tl.clone();
@@ -106,7 +109,7 @@ impl FluidSolver {
                 for (i, pos) in pos_off.iter_mut().enumerate() {
                     // Staggered grid
                     if i != coord_idx {
-                        *pos += 0.5;
+                        *pos -= 0.5;
                     }
                 }
 
@@ -115,6 +118,7 @@ impl FluidSolver {
                 // Advect
                 pos_off.iter_mut().zip(vel_here).for_each(|(p, v)| *p -= v * dt);
 
+                //*out_vel = vel_here[coord_idx];// self.flow.n_linear_interp(&pos_off, Boundary::Zero).unwrap_or(vec![0.0; dims])[coord_idx];
                 *out_vel = self.flow.n_linear_interp(&pos_off, Boundary::Zero).unwrap_or(vec![0.0; dims])[coord_idx];
             }
         }
