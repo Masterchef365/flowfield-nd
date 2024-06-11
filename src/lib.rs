@@ -413,6 +413,6 @@ mod tests {
 
 impl Default for SolverConfig {
     fn default() -> Self {
-        Self { dt: 0.1, n_iters: 10 }
+        Self { dt: 0.5, n_iters: 10 }
     }
 }
