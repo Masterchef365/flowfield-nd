@@ -61,7 +61,7 @@ impl FluidSolver {
         let shape_minus_one = vec![self.width() - 2; self.dims()];
 
         for (idx, tl) in fill_shape(&shape_minus_one).enumerate() {
-            if (idx & 1 == 0) != parity {
+            if (tl.iter().sum::<usize>() & 1 == 0) != parity {
                 continue;
             }
 
@@ -80,7 +80,7 @@ impl FluidSolver {
 
             let div_correction = total_divergence / (self.dims() as f32 * 2.);
 
-            let div_correction = div_correction * 1e-2;
+            //let div_correction = div_correction * 1e-2;
 
             for dim in 0..self.dims() {
                 let mut other = tl.clone();
