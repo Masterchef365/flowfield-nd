@@ -254,8 +254,8 @@ pub fn n_linear_interp_array(
     let dims = arr.shape().len();
     assert_eq!(input_pos.len(), dims);
 
-    let fractional: Vec<f32> = input_pos.iter().map(|p| p.fract() as f32).collect();
-    let upper_left: Vec<i32> = input_pos.iter().map(|p| p.floor() as i32).collect();
+    let fractional: MiniVec<f32> = input_pos.iter().map(|p| p.fract() as f32).collect();
+    let upper_left: MiniVec<i32> = input_pos.iter().map(|p| p.floor() as i32).collect();
 
     // Iterate over neighbors in n-space.
     // In 1D this is nearest neighbor
@@ -327,12 +327,12 @@ pub fn enumerate_coords(width: usize, n_dims: usize) -> impl Iterator<Item = Vec
 }
 */
 
-pub fn neighborhood(n_dims: usize) -> impl Iterator<Item=Vec<i32>> {
+pub fn neighborhood(n_dims: usize) -> impl Iterator<Item=MiniVec<i32>> {
     combos(-1, 1, 1, n_dims)
 }
 
-pub fn combos(min: i32, max: i32, step: i32, n_dims: usize) -> impl Iterator<Item=Vec<i32>> {
-    let mut dims = vec![min; n_dims];
+pub fn combos(min: i32, max: i32, step: i32, n_dims: usize) -> impl Iterator<Item=MiniVec<i32>> {
+    let mut dims = smallvec![min; n_dims];
     std::iter::from_fn(move || {
         // Quitting
         if dims.is_empty() {
@@ -353,15 +353,15 @@ pub fn combos(min: i32, max: i32, step: i32, n_dims: usize) -> impl Iterator<Ite
          
         // Remember to quit
         if ret.iter().all(|&v| v == max) {
-            dims = vec![];
+            dims = smallvec![];
         }
         
         Some(ret)
     })
 }
 
-pub fn fill_shape(shape: &[usize]) -> impl Iterator<Item=Vec<usize>> + '_ {
-    let mut dims = vec![0; shape.len()];
+pub fn fill_shape(shape: &[usize]) -> impl Iterator<Item=MiniVec<usize>> + '_ {
+    let mut dims = smallvec![0; shape.len()];
 
     std::iter::from_fn(move || {
         // Quitting
@@ -383,7 +383,7 @@ pub fn fill_shape(shape: &[usize]) -> impl Iterator<Item=Vec<usize>> + '_ {
          
         // Remember to quit
         if ret.iter().enumerate().all(|(idx, &v)| v + 1 == shape[idx]) {
-            dims = vec![];
+            dims = smallvec![];
         }
         
         Some(ret)
