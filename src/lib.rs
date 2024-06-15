@@ -1,6 +1,9 @@
 use std::ops::{Index, IndexMut};
 
+use smallvec::smallvec;
 use ndarray::{Array, Array2, ArrayView, Dimension, IxDyn};
+
+pub type MiniVec<T> = smallvec::SmallVec<[T; 6]>;
 
 #[derive(Clone)]
 pub struct SolverConfig {
@@ -103,7 +106,7 @@ impl FluidSolver {
 
         for (coord_idx, flow_channel) in self.writebuf.flow.iter_mut().enumerate() {
             for (grid_pos, out_vel) in flow_channel.indexed_iter_mut() {
-                let mut pos_off: Vec<f32> = grid_pos.as_array_view().iter().map(|p| *p as f32).collect();
+                let mut pos_off: MiniVec<f32> = grid_pos.as_array_view().iter().map(|p| *p as f32).collect();
 
                 // Calculate dimensional offset
                 for (i, pos) in pos_off.iter_mut().enumerate() {
@@ -113,20 +116,20 @@ impl FluidSolver {
                     }
                 }
 
-                let vel_here = self.flow.n_linear_interp(&pos_off, Boundary::Zero).unwrap_or(vec![0.0; dims]);
+                let vel_here = self.flow.n_linear_interp(&pos_off, Boundary::Zero).unwrap_or(smallvec![0.0; dims]);
 
                 // Advect
                 pos_off.iter_mut().zip(vel_here).for_each(|(p, v)| *p -= v * dt);
 
                 //*out_vel = vel_here[coord_idx];// self.flow.n_linear_interp(&pos_off, Boundary::Zero).unwrap_or(vec![0.0; dims])[coord_idx];
-                *out_vel = self.flow.n_linear_interp(&pos_off, Boundary::Zero).unwrap_or(vec![0.0; dims])[coord_idx];
+                *out_vel = self.flow.n_linear_interp(&pos_off, Boundary::Zero).unwrap_or(smallvec![0.0; dims])[coord_idx];
             }
         }
 
         std::mem::swap(&mut self.flow, &mut self.writebuf);
     }
 
-    pub fn shape(&self) -> Vec<usize> {
+    pub fn shape(&self) -> MiniVec<usize> {
         self.flow.shape()
     }
 
@@ -177,8 +180,8 @@ impl FlowField {
         }
     }
 
-    pub fn shape(&self) -> Vec<usize> {
-        vec![self.width; self.dims()]
+    pub fn shape(&self) -> MiniVec<usize> {
+        smallvec![self.width; self.dims()]
     }
 
     pub fn width(&self) -> usize {
@@ -205,10 +208,10 @@ impl FlowField {
     */
 
     /// linear interpolation of the flow map at a point in ND space
-    pub fn n_linear_interp(&self, position: &[f32], boundary: Boundary) -> Option<Vec<f32>> {
+    pub fn n_linear_interp(&self, position: &[f32], boundary: Boundary) -> Option<MiniVec<f32>> {
         assert_eq!(position.len(), self.dims());
 
-        let mut output = vec![0.0; self.dims()];
+        let mut output = smallvec![0.0; self.dims()];
 
         // Iterate over x, y, z, ...
         for (coord_idx, flow_channel) in self.flow.iter().enumerate() {
