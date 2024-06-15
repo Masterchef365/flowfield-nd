@@ -14,7 +14,7 @@ pub struct SolverConfig {
 #[derive(Clone)]
 pub struct FlowField {
     /// One single-component flow field for each face of the N-dimensional cube.
-    flow: Vec<Array<f32, IxDyn>>,
+    flow: MiniVec<Array<f32, IxDyn>>,
     width: usize,
 }
 
@@ -164,7 +164,7 @@ pub fn sweep_pointcloud(pcld: &mut PointCloud, flow: &FlowField, dt: f32) {
 
 impl FlowField {
     pub fn new(dimensions: usize, width: usize) -> Self {
-        let mut flow = vec![];
+        let mut flow = smallvec![];
         for dim in 0..dimensions {
             // We need an extra array element in each direction we're not principally responsible
             // for (as a cell)
@@ -199,13 +199,6 @@ impl FlowField {
     pub fn get_axes_mut(&mut self) -> &mut [Array<f32, IxDyn>] {
         &mut self.flow
     }
-
-    /*
-    /// Returns an iterator over the cell positions (as integers)
-    pub fn enumerate(&self) -> impl Iterator<Item = Vec<usize>> + 'static {
-        enumerate_coords(self.width(), self.dims())
-    }
-    */
 
     /// linear interpolation of the flow map at a point in ND space
     pub fn n_linear_interp(&self, position: &[f32], boundary: Boundary) -> Option<MiniVec<f32>> {
@@ -272,13 +265,13 @@ pub fn n_linear_interp_array(
             .map(|(p, c)| p + c)
             .enumerate()
             .map(|(idx, pos)| boundary.clamp_or_none(pos, arr.shape()[idx]))
-            .collect::<Option<Vec<usize>>>()?;
+            .collect::<Option<MiniVec<usize>>>()?;
         let val = arr[pos.as_slice()];
 
         let combo_usize = combo
             .into_iter()
             .map(|c| c as usize)
-            .collect::<Vec<usize>>();
+            .collect::<MiniVec<usize>>();
 
         *neighborhood.index_mut(combo_usize.as_slice()) = val;
     }
@@ -312,20 +305,6 @@ impl PointCloud {
         Self(Array::zeros((dimensions, 0)))
     }
 }
-
-/*
-pub fn enumerate_coords(width: usize, n_dims: usize) -> impl Iterator<Item = Vec<usize>> + 'static {
-    let mut coordinate = vec![0; n_dims];
-    std::iter::from_fn(move || {
-        let inc = coordinate.iter().position(|c| c + 1 != width)?;
-        let cpy = coordinate.clone();
-        coordinate[inc] += 1;
-        coordinate[0..inc].fill(0);
-        Some(cpy)
-    })
-    .chain(std::iter::once(vec![width - 1; n_dims]))
-}
-*/
 
 pub fn neighborhood(n_dims: usize) -> impl Iterator<Item=MiniVec<i32>> {
     combos(-1, 1, 1, n_dims)
