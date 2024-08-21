@@ -1,6 +1,7 @@
 use std::ops::{Index, IndexMut};
 
 use ndarray::{Array, Array2, ArrayView, Dimension, IxDyn, SliceInfoElem};
+use rayon::prelude::*;
 
 #[derive(Clone)]
 pub struct SolverConfig {
@@ -103,7 +104,7 @@ impl FluidSolver {
     fn advect(&mut self, dt: f32) {
         let dims = self.dims();
 
-        for (coord_idx, flow_channel) in self.writebuf.flow.iter_mut().enumerate() {
+        self.writebuf.flow.par_iter_mut().enumerate().for_each(|(coord_idx, flow_channel)| {
             for (grid_pos, out_vel) in flow_channel.indexed_iter_mut() {
                 let mut pos_off: Vec<f32> =
                     grid_pos.as_array_view().iter().map(|p| *p as f32).collect();
@@ -132,7 +133,7 @@ impl FluidSolver {
                     .n_linear_interp(&pos_off)
                     .unwrap_or(vec![0.0; dims])[coord_idx];
             }
-        }
+        });
 
         std::mem::swap(&mut self.flow, &mut self.writebuf);
     }
