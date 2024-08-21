@@ -27,7 +27,10 @@ pub struct PointCloud(pub Array2<f32>);
 
 impl FluidSolver {
     pub fn new(flow: FlowField) -> Self {
-        Self { writebuf: flow.clone(), flow }
+        Self {
+            writebuf: flow.clone(),
+            flow,
+        }
     }
 
     pub fn step(&mut self, config: &SolverConfig) {
@@ -92,7 +95,6 @@ impl FluidSolver {
                 self.writebuf.flow[dim][&*tl] = self.flow.flow[dim][&*tl] - div_correction;
                 self.writebuf.flow[dim][&*other] = self.flow.flow[dim][&*other] + div_correction;
             }
-
         }
 
         std::mem::swap(&mut self.flow, &mut self.writebuf);
@@ -103,7 +105,8 @@ impl FluidSolver {
 
         for (coord_idx, flow_channel) in self.writebuf.flow.iter_mut().enumerate() {
             for (grid_pos, out_vel) in flow_channel.indexed_iter_mut() {
-                let mut pos_off: Vec<f32> = grid_pos.as_array_view().iter().map(|p| *p as f32).collect();
+                let mut pos_off: Vec<f32> =
+                    grid_pos.as_array_view().iter().map(|p| *p as f32).collect();
 
                 // Calculate dimensional offset
                 for (i, pos) in pos_off.iter_mut().enumerate() {
@@ -113,13 +116,21 @@ impl FluidSolver {
                     }
                 }
 
-                let vel_here = self.flow.n_linear_interp(&pos_off, Boundary::Zero).unwrap_or(vec![0.0; dims]);
+                let vel_here = self
+                    .flow
+                    .n_linear_interp(&pos_off)
+                    .unwrap_or(vec![0.0; dims]);
 
                 // Advect
-                pos_off.iter_mut().zip(vel_here).for_each(|(p, v)| *p -= v * dt);
+                pos_off
+                    .iter_mut()
+                    .zip(vel_here)
+                    .for_each(|(p, v)| *p -= v * dt);
 
-                //*out_vel = vel_here[coord_idx];// self.flow.n_linear_interp(&pos_off, Boundary::Zero).unwrap_or(vec![0.0; dims])[coord_idx];
-                *out_vel = self.flow.n_linear_interp(&pos_off, Boundary::Zero).unwrap_or(vec![0.0; dims])[coord_idx];
+                *out_vel = self
+                    .flow
+                    .n_linear_interp(&pos_off)
+                    .unwrap_or(vec![0.0; dims])[coord_idx];
             }
         }
 
@@ -151,7 +162,7 @@ impl FluidSolver {
 /// Sweeps the given point cloud along the given flow field
 pub fn sweep_pointcloud(pcld: &mut PointCloud, flow: &FlowField, dt: f32) {
     for mut pos in pcld.0.outer_iter_mut() {
-        if let Some(vel) = flow.n_linear_interp(pos.as_slice().unwrap(), Boundary::Zero) {
+        if let Some(vel) = flow.n_linear_interp(pos.as_slice().unwrap()) {
             pos.iter_mut().zip(vel).for_each(|(p, v)| *p += v * dt);
         } else {
             // TODO: What happens when we go out of bounds?
@@ -171,10 +182,7 @@ impl FlowField {
             flow.push(Array::zeros(shape));
         }
 
-        Self {
-            flow,
-            width,
-        }
+        Self { flow, width }
     }
 
     pub fn shape(&self) -> Vec<usize> {
@@ -205,7 +213,7 @@ impl FlowField {
     */
 
     /// linear interpolation of the flow map at a point in ND space
-    pub fn n_linear_interp(&self, position: &[f32], boundary: Boundary) -> Option<Vec<f32>> {
+    pub fn n_linear_interp(&self, position: &[f32]) -> Option<Vec<f32>> {
         assert_eq!(position.len(), self.dims());
 
         let mut output = vec![0.0; self.dims()];
@@ -215,8 +223,8 @@ impl FlowField {
             let mut pos_off = position.to_vec();
             // Calculate dimensional offset
             for (i, pos) in pos_off.iter_mut().enumerate() {
-                // Offset inside this sub-grid. 
-                // The reasoning for this is that if we are a face of one dimension on the grid, 
+                // Offset inside this sub-grid.
+                // The reasoning for this is that if we are a face of one dimension on the grid,
                 // then the zero vale of our dimension should also be zero in the real world.
                 // Everything else is offset by 1/2 of a square because setting that one zero
                 // centered the face there!
@@ -226,7 +234,7 @@ impl FlowField {
                     *pos += 0.5;
                 }
             }
-            output[coord_idx] = n_linear_interp_array(flow_channel, &pos_off, boundary)?;
+            output[coord_idx] = n_linear_interp_array(flow_channel, &pos_off)?;
         }
 
         Some(output)
@@ -246,7 +254,6 @@ pub enum Boundary {
 pub fn n_linear_interp_array(
     arr: &Array<f32, IxDyn>,
     input_pos: &[f32],
-    boundary: Boundary,
 ) -> Option<f32> {
     let dims = arr.shape().len();
     assert_eq!(input_pos.len(), dims);
@@ -254,47 +261,26 @@ pub fn n_linear_interp_array(
     let fractional: Vec<f32> = input_pos.iter().map(|p| p.fract() as f32).collect();
     let upper_left: Vec<isize> = input_pos.iter().map(|p| p.floor() as isize).collect();
 
-    if upper_left.iter().zip(arr.shape()).any(|(idx, dim)| idx + 1 >= *dim as isize) {
+    if upper_left
+        .iter()
+        .zip(arr.shape())
+        .any(|(idx, dim)| idx + 1 >= *dim as isize)
+    {
         return None;
     }
 
-    let slice: Vec<SliceInfoElem> = upper_left.into_iter().map(|idx| SliceInfoElem::Slice { start: idx, end: Some(idx + 2), step: 1 }).collect();
-    //dbg!(&slice);
+    let slice: Vec<SliceInfoElem> = upper_left
+        .into_iter()
+        .map(|idx| SliceInfoElem::Slice {
+            start: idx,
+            end: Some(idx + 2),
+            step: 1,
+        })
+        .collect();
 
     let neighborhood = arr.slice(slice.as_slice());
 
-    /*
-    // Iterate over neighbors in n-space.
-    // In 1D this is nearest neighbor
-    // in 2D these are the vertices of the square
-    // in 3D these are ditto cube
-    // ... hypercubes
-    let mut neighborhood = Array::from_elem(vec![2; dims], 0.0);
-
-    for combo in combos(0, 1, 1, dims) {
-        dbg!(&combo);
-        // Offset position, and do bounds check
-        let pos = upper_left
-            .iter()
-            .zip(&combo)
-            .map(|(p, c)| p + c)
-            .enumerate()
-            .map(|(idx, pos)| boundary.clamp_or_none(pos, arr.shape()[idx]))
-            .collect::<Option<Vec<usize>>>()?;
-        let val = arr[pos.as_slice()];
-
-        let combo_usize = combo
-            .into_iter()
-            .map(|c| c as usize)
-            .collect::<Vec<usize>>();
-
-        *neighborhood.index_mut(combo_usize.as_slice()) = val;
-    }
-    */
-
     let mut neighborhood_lerp: Vec<f32> = neighborhood.iter().copied().collect();
-
-    //dbg!(neighborhood.len(), neighborhood_lerp.len());
 
     if neighborhood_lerp.len() != (1 << dims) {
         return None;
@@ -342,20 +328,20 @@ pub fn enumerate_coords(width: usize, n_dims: usize) -> impl Iterator<Item = Vec
 }
 */
 
-pub fn neighborhood(n_dims: usize) -> impl Iterator<Item=Vec<i32>> {
+pub fn neighborhood(n_dims: usize) -> impl Iterator<Item = Vec<i32>> {
     combos(-1, 1, 1, n_dims)
 }
 
-pub fn combos(min: i32, max: i32, step: i32, n_dims: usize) -> impl Iterator<Item=Vec<i32>> {
+pub fn combos(min: i32, max: i32, step: i32, n_dims: usize) -> impl Iterator<Item = Vec<i32>> {
     let mut dims = vec![min; n_dims];
     std::iter::from_fn(move || {
         // Quitting
         if dims.is_empty() {
             return None;
         }
-        
+
         let ret = dims.clone();
-       
+
         // Cascading add
         for i in 0..n_dims {
             if dims[i] < max {
@@ -365,17 +351,17 @@ pub fn combos(min: i32, max: i32, step: i32, n_dims: usize) -> impl Iterator<Ite
                 dims[i] = min;
             }
         }
-         
+
         // Remember to quit
         if ret.iter().all(|&v| v == max) {
             dims = vec![];
         }
-        
+
         Some(ret)
     })
 }
 
-pub fn fill_shape(shape: &[usize]) -> impl Iterator<Item=Vec<usize>> + '_ {
+pub fn fill_shape(shape: &[usize]) -> impl Iterator<Item = Vec<usize>> + '_ {
     let mut dims = vec![0; shape.len()];
 
     std::iter::from_fn(move || {
@@ -383,9 +369,9 @@ pub fn fill_shape(shape: &[usize]) -> impl Iterator<Item=Vec<usize>> + '_ {
         if dims.is_empty() {
             return None;
         }
-        
+
         let ret = dims.clone();
-       
+
         // Cascading add
         for i in 0..shape.len() {
             if dims[i] + 1 < shape[i] {
@@ -395,12 +381,12 @@ pub fn fill_shape(shape: &[usize]) -> impl Iterator<Item=Vec<usize>> + '_ {
                 dims[i] = 0;
             }
         }
-         
+
         // Remember to quit
         if ret.iter().enumerate().all(|(idx, &v)| v + 1 == shape[idx]) {
             dims = vec![];
         }
-        
+
         Some(ret)
     })
 }
@@ -414,7 +400,10 @@ mod tests {
         let mut arr = Array::from_elem(vec![2], 0.0);
         arr[[1]] = 1.0;
 
-        assert_eq!(n_linear_interp_array(&arr, &[0.46], Boundary::Zero).unwrap(), 0.46);
+        assert_eq!(
+            n_linear_interp_array(&arr, &[0.46]).unwrap(),
+            0.46
+        );
     }
 
     #[test]
@@ -423,14 +412,27 @@ mod tests {
         arr[[1, 0]] = 1.0;
         arr[[1, 1]] = 10.0;
 
-        assert_eq!(n_linear_interp_array(&arr, &[0.5, 0.5], Boundary::Zero).unwrap(), 2.75);
-        assert_eq!(n_linear_interp_array(&arr, &[0.0, 0.5], Boundary::Zero).unwrap(), 0.);
-        assert!((n_linear_interp_array(&arr, &[0.9999, 0.5], Boundary::Zero).unwrap() - 11.0/2.0).abs() < 1e-3);
+        assert_eq!(
+            n_linear_interp_array(&arr, &[0.5, 0.5]).unwrap(),
+            2.75
+        );
+        assert_eq!(
+            n_linear_interp_array(&arr, &[0.0, 0.5]).unwrap(),
+            0.
+        );
+        assert!(
+            (n_linear_interp_array(&arr, &[0.9999, 0.5]).unwrap() - 11.0 / 2.0)
+                .abs()
+                < 1e-3
+        );
     }
 }
 
 impl Default for SolverConfig {
     fn default() -> Self {
-        Self { dt: 0.5, n_iters: 10 }
+        Self {
+            dt: 0.5,
+            n_iters: 10,
+        }
     }
 }
