@@ -1,6 +1,6 @@
 use std::ops::{Index, IndexMut};
 
-use ndarray::{Array, Array2, ArrayView, Dimension, IxDyn};
+use ndarray::{Array, Array2, ArrayView, Dimension, IxDyn, SliceInfoElem};
 
 #[derive(Clone)]
 pub struct SolverConfig {
@@ -252,8 +252,18 @@ pub fn n_linear_interp_array(
     assert_eq!(input_pos.len(), dims);
 
     let fractional: Vec<f32> = input_pos.iter().map(|p| p.fract() as f32).collect();
-    let upper_left: Vec<i32> = input_pos.iter().map(|p| p.floor() as i32).collect();
+    let upper_left: Vec<isize> = input_pos.iter().map(|p| p.floor() as isize).collect();
 
+    if upper_left.iter().zip(arr.shape()).any(|(idx, dim)| idx + 1 >= *dim as isize) {
+        return None;
+    }
+
+    let slice: Vec<SliceInfoElem> = upper_left.into_iter().map(|idx| SliceInfoElem::Slice { start: idx, end: Some(idx + 2), step: 1 }).collect();
+    //dbg!(&slice);
+
+    let neighborhood = arr.slice(slice.as_slice());
+
+    /*
     // Iterate over neighbors in n-space.
     // In 1D this is nearest neighbor
     // in 2D these are the vertices of the square
@@ -262,6 +272,7 @@ pub fn n_linear_interp_array(
     let mut neighborhood = Array::from_elem(vec![2; dims], 0.0);
 
     for combo in combos(0, 1, 1, dims) {
+        dbg!(&combo);
         // Offset position, and do bounds check
         let pos = upper_left
             .iter()
@@ -279,8 +290,15 @@ pub fn n_linear_interp_array(
 
         *neighborhood.index_mut(combo_usize.as_slice()) = val;
     }
+    */
 
-    let neighborhood_lerp = neighborhood.as_slice_memory_order_mut().unwrap();
+    let mut neighborhood_lerp: Vec<f32> = neighborhood.iter().copied().collect();
+
+    //dbg!(neighborhood.len(), neighborhood_lerp.len());
+
+    if neighborhood_lerp.len() != (1 << dims) {
+        return None;
+    }
 
     // Fast linear interpolate
     for dimension in 0..dims {
