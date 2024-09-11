@@ -6,6 +6,7 @@ use ndarray::{Array, Array2, ArrayView, Dimension, IxDyn, SliceInfoElem};
 pub struct SolverConfig {
     pub dt: f32,
     pub n_iters: usize,
+    pub overstep: f32,
 }
 
 #[derive(Clone)]
@@ -34,15 +35,15 @@ impl FluidSolver {
     }
 
     pub fn step(&mut self, config: &SolverConfig) {
-        self.jacobi(config.n_iters);
+        self.jacobi(config.n_iters, config.overstep);
         self.advect(config.dt);
         self.enforce_boundaries();
     }
 
-    fn jacobi(&mut self, n_iters: usize) {
+    fn jacobi(&mut self, n_iters: usize, overstep: f32) {
         for i in 0..n_iters * 2 {
             self.enforce_boundaries();
-            self.jacobi_half_step(i & 1 != 0);
+            self.jacobi_half_step(i & 1 != 0, overstep);
         }
     }
 
@@ -60,9 +61,7 @@ impl FluidSolver {
         }
     }
 
-    fn jacobi_half_step(&mut self, parity: bool) {
-        const OVERSTEP: f32 = 1.5;
-
+    fn jacobi_half_step(&mut self, parity: bool, overstep: f32) {
         let shape_minus_one = vec![self.width() - 1; self.dims()];
 
         for mut tl in fill_shape(&shape_minus_one) {
@@ -86,7 +85,7 @@ impl FluidSolver {
             }
 
             let mut div_correction = total_divergence / (self.dims() as f32 * 2.);
-            div_correction *= OVERSTEP;
+            div_correction *= overstep;
 
             for dim in 0..self.dims() {
                 let mut other = tl.clone();
@@ -433,6 +432,7 @@ impl Default for SolverConfig {
         Self {
             dt: 0.5,
             n_iters: 10,
+            overstep: 1.5,
         }
     }
 }
